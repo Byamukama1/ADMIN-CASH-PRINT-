@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - CashPrint</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f3f4f6;
+      padding: 20px;
+      color: #333;
+    }
+    h2 {
+      color: #007b55;
+    }
+    .summary {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .summary div {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      flex: 1;
+      min-width: 200px;
+    }
+    button {
+      padding: 6px 10px;
+      margin: 2px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .approve { background: #007b55; color: white; }
+    .reject { background: #d00000; color: white; }
+    .section {
+      background: #fff;
+      padding: 15px;
+      margin-bottom: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .section h3 {
+      color: #007b55;
+      margin-bottom: 10px;
+    }
+    .buttons {
+      margin-bottom: 20px;
+    }
+    .buttons button {
+      background: #007b55;
+      color: white;
+    }
+  </style>
+</head>
+<body><h2>Admin Dashboard</h2><div class="summary">
+  <div><strong>Total Paid Deposits:</strong> UGX <span id="totalDeposits">0</span></div>
+  <div><strong>Total Paid Withdrawals:</strong> UGX <span id="totalWithdrawals">0</span></div>
+  <div><strong>Company Profit:</strong> UGX <span id="profit">0</span></div>
+</div><div class="buttons">
+  <button onclick="location.href='users.html'">Go to Users</button>
+  <button onclick="location.href='earnings.html'">Go to Earnings</button>
+</div><div class="section">
+  <h3>Pending Deposits</h3>
+  <div id="pendingDeposits"></div>
+</div><div class="section">
+  <h3>Pending Withdrawals</h3>
+  <div id="pendingWithdrawals"></div>
+</div><script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+    authDomain: "cashprint-c5e72.firebaseapp.com",
+    projectId: "cashprint-c5e72",
+    storageBucket: "cashprint-c5e72.appspot.com",
+    messagingSenderId: "613734624925",
+    appId: "1:613734624925:web:d6bc8a18b3b6cb3a31ae74"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  async function loadDashboard() {
+    let totalDeposits = 0;
+    let totalWithdrawals = 0;
+
+    const depositsSnap = await db.collection("deposits").where("status", "==", "approved").get();
+    depositsSnap.forEach(doc => totalDeposits += doc.data().amount);
+
+    const withdrawalsSnap = await db.collection("withdrawals").where("status", "==", "paid").get();
+    withdrawalsSnap.forEach(doc => totalWithdrawals += doc.data().amount);
+
+    document.getElementById("totalDeposits").textContent = totalDeposits.toLocaleString();
+    document.getElementById("totalWithdrawals").textContent = totalWithdrawals.toLocaleString();
+    document.getElementById("profit").textContent = (totalDeposits - totalWithdrawals).toLocaleString();
+  }
+
+  async function loadPending() {
+    const pendingDeposits = document.getElementById("pendingDeposits");
+    const pendingWithdrawals = document.getElementById("pendingWithdrawals");
+
+    const depositsSnap = await db.collection("deposits").where("status", "==", "pending").get();
+    depositsSnap.forEach(doc => {
+      const d = doc.data();
+      pendingDeposits.innerHTML += `
+        <div><strong>${d.senderName}</strong> (${d.senderPhone}) - UGX ${d.amount}
+          <button class="approve" onclick="approveDeposit('${doc.id}', ${d.amount}, '${d.userId}')">Approve</button>
+          <button class="reject" onclick="rejectDeposit('${doc.id}')">Reject</button>
+        </div>`;
+    });
+
+    const withdrawSnap = await db.collection("withdrawals").where("status", "==", "pending").get();
+    withdrawSnap.forEach(doc => {
+      const d = doc.data();
+      pendingWithdrawals.innerHTML += `
+        <div><strong>${d.name}</strong> (${d.phone}) - UGX ${d.amount}
+          <button class="approve" onclick="approveWithdrawal('${doc.id}')">Approve</button>
+          <button class="reject" onclick="rejectWithdrawal('${doc.id}')">Reject</button>
+        </div>`;
+    });
+  }
+
+  async function approveDeposit(id, amount, userId) {
+    await db.collection("deposits").doc(id).update({ status: "approved" });
+    await db.collection("users").doc(userId).update({
+      accountBalance: firebase.firestore.FieldValue.increment(amount)
+    });
+    alert("Deposit approved and balance updated.");
+    location.reload();
+  }
+
+  async function rejectDeposit(id) {
+    await db.collection("deposits").doc(id).update({ status: "rejected" });
+    alert("Deposit rejected.");
+    location.reload();
+  }
+
+  async function approveWithdrawal(id) {
+    await db.collection("withdrawals").doc(id).update({ status: "paid" });
+    alert("Withdrawal approved.");
+    location.reload();
+  }
+
+  async function rejectWithdrawal(id) {
+    await db.collection("withdrawals").doc(id).update({ status: "rejected" });
+    alert("Withdrawal rejected.");
+    location.reload();
+  }
+
+  loadDashboard();
+  loadPending();
+</script></body>
+</html>
