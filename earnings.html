@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Earnings Manager - CashPrint</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 10px 20px;
+      background-color: #007B55;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn:hover {
+      background-color: #00563a;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+    .card p {
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>📈 Earnings Manager</h2>
+    <button class="btn" id="processEarningsBtn">Process Earnings</button>
+  </div>  <div id="earningsContainer">Loading earnings...</div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+      authDomain: "cashprint-c5e72.firebaseapp.com",
+      projectId: "cashprint-c5e72",
+      storageBucket: "cashprint-c5e72.appspot.com",
+      messagingSenderId: "613734624925",
+      appId: "1:613734624925:web:d6bc8a18b3b6cb3a31ae74"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const earningsContainer = document.getElementById('earningsContainer');
+    const processBtn = document.getElementById('processEarningsBtn');
+
+    let lastProcessedTimeKey = "lastProcessedTime";
+
+    function loadEarnings() {
+      earningsContainer.innerHTML = '';
+      db.collection("earnings").get().then(snapshot => {
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <p><b>User:</b> ${data.userId}</p>
+            <p><b>Amount:</b> ${data.amount}</p>
+            <p><b>Daily Income:</b> ${data.dailyIncome}</p>
+            <p><b>Remaining Days:</b> ${data.remainingDays}</p>
+            <p><b>Date:</b> ${new Date(data.timestamp?.seconds * 1000).toLocaleString()}</p>
+          `;
+          earningsContainer.appendChild(card);
+        });
+      });
+    }
+
+    function processEarnings() {
+      const last = localStorage.getItem(lastProcessedTimeKey);
+      const now = Date.now();
+      if (last && now - last < 86400000) {
+        const remaining = Math.ceil((86400000 - (now - last)) / 3600000);
+        alert(`You can process earnings again in ${remaining} hour(s)`);
+        return;
+      }
+      db.collection("earnings").get().then(snapshot => {
+        snapshot.forEach(async doc => {
+          const data = doc.data();
+          if (data.remainingDays > 0) {
+            const newRemaining = data.remainingDays - 1;
+            await db.collection("earnings").doc(doc.id).update({ remainingDays: newRemaining });
+            const userRef = db.collection("users").doc(data.userId);
+            await userRef.update({
+              accountBalance: firebase.firestore.FieldValue.increment(data.dailyIncome)
+            });
+          }
+        });
+        alert("Earnings processed successfully");
+        localStorage.setItem(lastProcessedTimeKey, now);
+        loadEarnings();
+      });
+    }
+
+    processBtn.addEventListener("click", processEarnings);
+    loadEarnings();
+  </script></body>
+</html>
