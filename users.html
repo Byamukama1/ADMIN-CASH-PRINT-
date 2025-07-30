@@ -42,11 +42,40 @@
       max-width: 500px;
     }
 
+    .user-card label {
+      display: block;
+      margin-top: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+    }
+
     .user-card input {
       width: 100%;
       padding: 8px;
-      margin: 6px 0;
+      margin-top: 4px;
       font-size: 15px;
+    }
+
+    .user-card .readonly {
+      background: #eee;
+    }
+
+    .earnings-list {
+      background: #f1f1f1;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .earnings-list div {
+      padding: 5px 0;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .earnings-list div:last-child {
+      border-bottom: none;
     }
 
     .actions {
@@ -98,26 +127,62 @@
 
     let allUsers = [];
 
-    function renderUsers(users) {
+    async function renderUsers(users) {
       userList.innerHTML = '';
-      users.forEach(doc => {
+      for (const doc of users) {
         const user = doc.data();
+        const userId = doc.id;
+
+        // Get total withdrawn
+        const withdrawSnapshot = await db.collection("withdrawals")
+          .where("userId", "==", userId)
+          .where("status", "==", "paid")
+          .get();
+        let totalWithdrawn = 0;
+        withdrawSnapshot.forEach(w => totalWithdrawn += w.data().amount || 0);
+
+        // Get earnings
+        const earningsSnapshot = await db.collection("earnings")
+          .where("userId", "==", userId)
+          .get();
+        let earningsHTML = '';
+        earningsSnapshot.forEach(e => {
+          const data = e.data();
+          const earned = (20 - data.remainingDays) * data.dailyIncome;
+          earningsHTML += `<div>💰 ${earned.toLocaleString()} UGX earned from ${data.amount.toLocaleString()} UGX</div>`;
+        });
+
         const card = document.createElement("div");
         card.className = "user-card";
-
         card.innerHTML = `
-          <input type="text" value="${user.name}" id="name-${doc.id}" placeholder="Name">
-          <input type="text" value="${user.email}" id="email-${doc.id}" placeholder="Email">
-          <input type="text" value="${user.phone}" id="phone-${doc.id}" placeholder="Phone">
-          <input type="text" value="${user.accountBalance}" id="balance-${doc.id}" placeholder="Account Balance">
-          <input type="text" value="${user.referrerPhone}" id="referrer-${doc.id}" placeholder="Referrer Phone">
+          <label>Name</label>
+          <input type="text" value="${user.name}" id="name-${userId}" placeholder="Name">
+          
+          <label>Email</label>
+          <input type="text" value="${user.email}" id="email-${userId}" placeholder="Email">
+          
+          <label>Phone</label>
+          <input type="text" value="${user.phone}" id="phone-${userId}" placeholder="Phone">
+          
+          <label>Account Balance</label>
+          <input type="text" value="${user.accountBalance}" id="balance-${userId}" placeholder="Account Balance">
+          
+          <label>Referrer Phone</label>
+          <input type="text" value="${user.referrerPhone}" id="referrer-${userId}" placeholder="Referrer Phone">
+          
+          <label>Total Withdrawn</label>
+          <input type="text" class="readonly" value="${totalWithdrawn.toLocaleString()} UGX" readonly>
+
+          <label>Earnings</label>
+          <div class="earnings-list">${earningsHTML || '<div>No earnings yet</div>'}</div>
+          
           <div class="actions">
-            <button class="save-btn" onclick="saveUser('${doc.id}')">Save</button>
-            <button class="delete-btn" onclick="deleteUser('${doc.id}')">Delete</button>
+            <button class="save-btn" onclick="saveUser('${userId}')">Save</button>
+            <button class="delete-btn" onclick="deleteUser('${userId}')">Delete</button>
           </div>
         `;
         userList.appendChild(card);
-      });
+      }
 
       totalUsers.textContent = users.length;
     }
