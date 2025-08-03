@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,12 +15,20 @@
       padding: 20px;
       color: #333;
     }
+
     .header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .header-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
     }
+
     .btn {
       padding: 10px 20px;
       background-color: #007B55;
@@ -29,9 +38,20 @@
       cursor: pointer;
       font-size: 16px;
     }
+
     .btn:hover {
       background-color: #00563a;
     }
+
+    .search-input {
+      padding: 8px 14px;
+      width: 100%;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
     .card {
       background: white;
       padding: 15px;
@@ -39,16 +59,38 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
+
     .card p {
       margin: 6px 0;
+    }
+
+    .delete-btn {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .delete-btn:hover {
+      background-color: #c0392b;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h2>📈 Earnings Manager</h2>
-    <button class="btn" id="processEarningsBtn">Process Earnings</button>
-  </div>  <div id="earningsContainer">Loading earnings...</div>  <script>
+    <div class="header-bar">
+      <h2>📈 Earnings Manager</h2>
+      <button class="btn" id="processEarningsBtn">Process Earnings</button>
+    </div>
+    <input type="text" id="searchInput" class="search-input" placeholder="Search by name or phone...">
+  </div>
+
+  <div id="earningsContainer">Loading earnings...</div>
+
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
       authDomain: "cashprint-c5e72.firebaseapp.com",
@@ -63,55 +105,112 @@
 
     const earningsContainer = document.getElementById('earningsContainer');
     const processBtn = document.getElementById('processEarningsBtn');
+    const searchInput = document.getElementById('searchInput');
+    const lastProcessedTimeKey = "lastProcessedTime";
 
-    let lastProcessedTimeKey = "lastProcessedTime";
+    let allEarnings = [];
 
-    function loadEarnings() {
+    async function loadEarnings() {
+      earningsContainer.innerHTML = 'Loading...';
+      allEarnings = [];
+
+      const snapshot = await db.collection("earnings").get();
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const userId = data.userId;
+        const docId = doc.id;
+
+        try {
+          const userDoc = await db.collection("users").doc(userId).get();
+          const userData = userDoc.exists ? userDoc.data() : {};
+
+          allEarnings.push({
+            docId,
+            userId,
+            name: userData.name || 'Unknown',
+            phone: userData.phone || 'N/A',
+            ...data
+          });
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      }
+
+      renderEarnings(allEarnings);
+    }
+
+    function renderEarnings(dataList) {
       earningsContainer.innerHTML = '';
-      db.collection("earnings").get().then(snapshot => {
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.innerHTML = `
-            <p><b>User:</b> ${data.userId}</p>
-            <p><b>Amount:</b> ${data.amount}</p>
-            <p><b>Daily Income:</b> ${data.dailyIncome}</p>
-            <p><b>Remaining Days:</b> ${data.remainingDays}</p>
-            <p><b>Date:</b> ${new Date(data.timestamp?.seconds * 1000).toLocaleString()}</p>
-          `;
-          earningsContainer.appendChild(card);
-        });
+      if (dataList.length === 0) {
+        earningsContainer.innerHTML = '<p>No earnings found.</p>';
+        return;
+      }
+
+      dataList.forEach(entry => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <p><b>Name:</b> ${entry.name}</p>
+          <p><b>Phone:</b> ${entry.phone}</p>
+          <p><b>Amount:</b> ${entry.amount}</p>
+          <p><b>Daily Income:</b> ${entry.dailyIncome}</p>
+          <p><b>Remaining Days:</b> ${entry.remainingDays}</p>
+          <p><b>Date:</b> ${new Date(entry.timestamp?.seconds * 1000).toLocaleString()}</p>
+          <button class="delete-btn" onclick="deleteEarning('${entry.docId}')">Delete</button>
+        `;
+        earningsContainer.appendChild(card);
       });
     }
 
-    function processEarnings() {
+    async function deleteEarning(docId) {
+      const confirmDelete = confirm("Are you sure you want to delete this earnings entry?");
+      if (confirmDelete) {
+        await db.collection("earnings").doc(docId).delete();
+        alert("Earnings entry deleted.");
+        loadEarnings();
+      }
+    }
+
+    async function processEarnings() {
       const last = localStorage.getItem(lastProcessedTimeKey);
       const now = Date.now();
+
       if (last && now - last < 86400000) {
         const remaining = Math.ceil((86400000 - (now - last)) / 3600000);
         alert(`You can process earnings again in ${remaining} hour(s)`);
         return;
       }
-      db.collection("earnings").get().then(snapshot => {
-        snapshot.forEach(async doc => {
-          const data = doc.data();
-          if (data.remainingDays > 0) {
-            const newRemaining = data.remainingDays - 1;
-            await db.collection("earnings").doc(doc.id).update({ remainingDays: newRemaining });
-            const userRef = db.collection("users").doc(data.userId);
-            await userRef.update({
-              accountBalance: firebase.firestore.FieldValue.increment(data.dailyIncome)
-            });
-          }
-        });
-        alert("Earnings processed successfully");
-        localStorage.setItem(lastProcessedTimeKey, now);
-        loadEarnings();
-      });
+
+      const snapshot = await db.collection("earnings").get();
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        if (data.remainingDays > 0) {
+          const newRemaining = data.remainingDays - 1;
+          await db.collection("earnings").doc(doc.id).update({ remainingDays: newRemaining });
+          await db.collection("users").doc(data.userId).update({
+            accountBalance: firebase.firestore.FieldValue.increment(data.dailyIncome)
+          });
+        }
+      }
+
+      alert("✅ Earnings processed successfully");
+      localStorage.setItem(lastProcessedTimeKey, now);
+      loadEarnings();
     }
+
+    searchInput.addEventListener("input", () => {
+      const keyword = searchInput.value.toLowerCase();
+      const filtered = allEarnings.filter(entry =>
+        entry.name.toLowerCase().includes(keyword) ||
+        entry.phone.toLowerCase().includes(keyword)
+      );
+      renderEarnings(filtered);
+    });
 
     processBtn.addEventListener("click", processEarnings);
     loadEarnings();
-  </script></body>
+  </script>
+</body>
 </html>
