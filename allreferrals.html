@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Referrals - CashPrint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+      color: #2c3e50;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #d35400;
+    }
+
+    .search-box {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .search-box input {
+      width: 90%;
+      max-width: 400px;
+      padding: 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .user-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      padding: 20px;
+      margin-bottom: 25px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .referrer-summary {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+      margin-bottom: 15px;
+    }
+
+    .referrer-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .user-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3498db, #8e44ad);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: white;
+    }
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-weight: 700;
+      font-size: 18px;
+      color: #2c3e50;
+    }
+
+    .user-phone {
+      color: #7f8c8d;
+      font-size: 14px;
+    }
+
+    .stats-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .stat-box {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px 15px;
+      min-width: 140px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #d35400;
+      margin: 5px 0;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: #7f8c8d;
+    }
+
+    .referrals-section {
+      margin-top: 15px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .referrals-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .referrals-table th {
+      background-color: #f1f5f9;
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 14px;
+      color: #34495e;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .referrals-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 14px;
+    }
+
+    .referrals-table tr:hover {
+      background-color: #f8fafc;
+    }
+
+    .whatsapp-link {
+      color: #25D366;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .whatsapp-link:hover {
+      text-decoration: underline;
+    }
+
+    .deposit-amount {
+      font-weight: 600;
+      color: #27ae60;
+    }
+
+    .no-referrals {
+      text-align: center;
+      padding: 20px;
+      color: #7f8c8d;
+      font-style: italic;
+    }
+
+    .loading, .error {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 15px;
+      color: #888;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+    }
+    
+    .total-deposits {
+      background: linear-gradient(135deg, #f39c12, #e67e22);
+      color: white;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2><i class="fas fa-users"></i> All Users and Their Referrals</h2>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search by name or phone...">
+    </div>
+
+    <div id="adminReferralList">
+      <div class="loading">Loading data...</div>
+    </div>
+  </div>
+
+<!-- Replace entire <script> tag in your file with this one -->
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+    authDomain: "cashprint-c5e72.firebaseapp.com",
+    projectId: "cashprint-c5e72",
+    storageBucket: "cashprint-c5e72.appspot.com",
+    messagingSenderId: "613734624925",
+    appId: "1:613734624925:web:d6bc8a18b3b6cb3a31ae74"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const container = document.getElementById('adminReferralList');
+  const searchInput = document.getElementById('searchInput');
+  let allCards = [];
+
+  function formatPhoneNumber(phone) {
+    if (!phone) return 'N/A';
+    return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
+
+  function getWhatsAppLink(phone) {
+    if (!phone) return '#';
+    const cleaned = phone.replace(/\D/g, '');
+    return `https://wa.me/${cleaned}`;
+  }
+
+  async function getApprovedDeposits(userId) {
+    const snapshot = await db.collection('deposits')
+      .where('userId', '==', userId)
+      .where('status', '==', 'approved')
+      .get();
+    let total = 0;
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      total += data.amount || 0;
+    });
+    return total;
+  }
+
+  async function getReferrals(referrerPhone) {
+    const snapshot = await db.collection('users')
+      .where('referrerPhone', '==', referrerPhone)
+      .get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+
+  async function loadAllUsersAndReferrals() {
+    container.innerHTML = '<div class="loading">Loading data...</div>';
+    allCards = [];
+
+    try {
+      const usersSnapshot = await db.collection('users').get();
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      container.innerHTML = '';
+
+      for (const user of allUsers) {
+        const referrals = await getReferrals(user.phone);
+        let referralDeposits = [];
+        let referrerTotalDeposits = 0;
+
+        for (const referral of referrals) {
+          const totalDeposits = await getApprovedDeposits(referral.id);
+          referralDeposits.push({ ...referral, totalDeposits });
+          referrerTotalDeposits += totalDeposits;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'user-card';
+        card.innerHTML = `
+          <div class="referrer-summary">
+            <div class="referrer-info">
+              <div class="user-avatar">${user.name?.charAt(0) || 'U'}</div>
+              <div class="user-details">
+                <div class="user-name">${user.name || 'Unknown User'}</div>
+                <div class="user-phone">📱 ${formatPhoneNumber(user.phone)}</div>
+              </div>
+            </div>
+            <div class="stats-container">
+              <div class="stat-box">
+                <div class="stat-value">${referrals.length}</div>
+                <div class="stat-label">Referrals</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-value">${referrerTotalDeposits.toLocaleString()} UGX</div>
+                <div class="stat-label">Total Deposits</div>
+              </div>
+            </div>
+          </div>
+          <div class="referrals-section">
+            <div class="section-title">
+              <i class="fas fa-user-friends"></i> Referrals
+              <div class="total-deposits">
+                <i class="fas fa-coins"></i> Total: ${referrerTotalDeposits.toLocaleString()} UGX
+              </div>
+            </div>
+            ${referrals.length === 0 ? `
+              <div class="no-referrals">No referrals yet</div>
+            ` : `
+              <table class="referrals-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>WhatsApp</th>
+                    <th>Approved Deposits</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${referralDeposits.map(r => `
+                    <tr>
+                      <td>${r.name || 'Unknown'}</td>
+                      <td>
+                        <a href="${getWhatsAppLink(r.phone)}" class="whatsapp-link" target="_blank">
+                          <i class="fab fa-whatsapp"></i> ${formatPhoneNumber(r.phone)}
+                        </a>
+                      </td>
+                      <td class="deposit-amount">${r.totalDeposits.toLocaleString()} UGX</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `}
+          </div>
+        `;
+
+        allCards.push({
+          element: card,
+          name: (user.name || '').toLowerCase(),
+          phone: (user.phone || '').toLowerCase()
+        });
+
+        container.appendChild(card);
+      }
+
+      if (allUsers.length === 0) {
+        container.innerHTML = '<div class="error">No users found.</div>';
+      }
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<div class="error">Failed to load data.</div>';
+    }
+  }
+
+  searchInput.addEventListener('input', () => {
+    const term = searchInput.value.toLowerCase();
+    container.innerHTML = '';
+    const filtered = allCards.filter(card =>
+      card.name.includes(term) || card.phone.includes(term)
+    );
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="error">No matching users.</div>';
+    } else {
+      filtered.forEach(card => container.appendChild(card.element));
+    }
+  });
+
+  loadAllUsersAndReferrals();
+</script>
+</body>
+</html>
