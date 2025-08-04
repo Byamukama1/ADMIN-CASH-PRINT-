@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Create Spin Password</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    h2 {
+      color: #d35400;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .winner {
+      background: white;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 8px;
+      box-shadow: 0 0 4px rgba(0,0,0,0.1);
+    }
+    .success {
+      color: green;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h2>Create Spin Password</h2>
+  <input type="text" id="spinPassword" placeholder="Enter new password" />
+  <button onclick="createSpinPassword()">Create Password</button>
+  <div class="success" id="successMsg"></div>
+
+  <h3>Recent Winners</h3>
+  <div id="winnerList">Loading...</div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+      authDomain: "cashprint-c5e72.firebaseapp.com",
+      projectId: "cashprint-c5e72",
+      storageBucket: "cashprint-c5e72.appspot.com",
+      messagingSenderId: "613734624925",
+      appId: "1:613734624925:web:d6bc8a18b3b6cb3a31ae74"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function createSpinPassword() {
+      const password = document.getElementById("spinPassword").value.trim();
+      const successMsg = document.getElementById("successMsg");
+      if (!password) return alert("Enter a password");
+
+      const now = new Date();
+      const expires = new Date(now.getTime() + 5 * 60000); // expires in 5 min
+
+      await db.collection("spinPasswords").add({
+        password,
+        createdAt: firebase.firestore.Timestamp.fromDate(now),
+        expiresAt: firebase.firestore.Timestamp.fromDate(expires)
+      });
+
+      successMsg.textContent = `✅ Password "${password}" created and will expire in 5 minutes`;
+      document.getElementById("spinPassword").value = "";
+    }
+
+    async function loadWinners() {
+      const snapshot = await db.collection("spins")
+        .orderBy("timestamp", "desc")
+        .limit(30)
+        .get();
+      
+      const list = document.getElementById("winnerList");
+      if (snapshot.empty) {
+        list.innerHTML = "No winners yet.";
+        return;
+      }
+
+      list.innerHTML = "";
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const date = d.timestamp?.toDate().toLocaleString();
+        const item = document.createElement("div");
+        item.className = "winner";
+        item.textContent = `🎉 ${d.userName} won ${d.amountWon} UGX on ${date} (via ${d.source})`;
+        list.appendChild(item);
+      });
+    }
+
+    loadWinners();
+  </script>
+</body>
+</html>
