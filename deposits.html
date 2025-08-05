@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Approved Deposits - CashPrint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    .summary {
+      text-align: center;
+      margin: 10px 0;
+      font-size: 18px;
+      font-weight: bold;
+      color: #27ae60;
+    }
+
+    #searchBar {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .deposit-card {
+      background: #fff;
+      border-left: 4px solid #27ae60;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .deposit-card p {
+      margin: 5px 0;
+    }
+
+    .delete-btn {
+      background-color: #e74c3c;
+      color: white;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>All Approved Deposits</h2>
+  <div class="summary" id="totalAmount">Total Deposits: 0 UGX</div>
+  <input type="text" id="searchBar" placeholder="Search by name or phone..." oninput="filterDeposits()" />
+  <div id="depositsList">Loading approved deposits...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+      authDomain: "cashprint-c5e72.firebaseapp.com",
+      projectId: "cashprint-c5e72"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let allDeposits = []; // store all data globally
+
+    async function loadApprovedDeposits() {
+      const container = document.getElementById("depositsList");
+      const totalDisplay = document.getElementById("totalAmount");
+      container.innerHTML = "Loading...";
+      let total = 0;
+
+      const snapshot = await db.collection("deposits").where("status", "==", "approved").get();
+      container.innerHTML = "";
+
+      if (snapshot.empty) {
+        container.textContent = "No approved deposits found.";
+        totalDisplay.textContent = "Total Deposits: 0 UGX";
+        return;
+      }
+
+      allDeposits = [];
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        allDeposits.push({ id: doc.id, ...data });
+        total += data.amount || 0;
+      });
+
+      totalDisplay.textContent = `Total Deposits: ${total.toLocaleString()} UGX`;
+      displayDeposits(allDeposits);
+    }
+
+    function displayDeposits(deposits) {
+      const container = document.getElementById("depositsList");
+      container.innerHTML = "";
+      deposits.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "deposit-card";
+        const timestamp = d.timestamp?.toDate().toLocaleString() || "No time";
+
+        card.innerHTML = `
+          <p><strong>Name:</strong> ${d.senderName || "N/A"}</p>
+          <p><strong>Phone:</strong> ${d.senderPhone || "N/A"}</p>
+          <p><strong>Amount:</strong> ${d.amount} UGX</p>
+          <p><strong>Time:</strong> ${timestamp}</p>
+          <button class="delete-btn" onclick="deleteDeposit('${d.id}')">Delete</button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterDeposits() {
+      const searchValue = document.getElementById("searchBar").value.toLowerCase();
+      const filtered = allDeposits.filter(d =>
+        (d.senderName || "").toLowerCase().includes(searchValue) ||
+        (d.senderPhone || "").toLowerCase().includes(searchValue)
+      );
+      displayDeposits(filtered);
+    }
+
+    async function deleteDeposit(docId) {
+      if (confirm("Are you sure you want to delete this deposit?")) {
+        await db.collection("deposits").doc(docId).delete();
+        alert("Deleted successfully.");
+        loadApprovedDeposits();
+      }
+    }
+
+    loadApprovedDeposits();
+  </script>
+
+</body>
+</html>
