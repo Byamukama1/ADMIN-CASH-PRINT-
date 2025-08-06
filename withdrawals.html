@@ -1,0 +1,145 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Withdrawals</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f9;
+      padding: 20px;
+      color: #333;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2a8c4a;
+    }
+    .search-container {
+      max-width: 400px;
+      margin: auto;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .search-container input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    .withdrawal-card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px auto;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-width: 600px;
+    }
+    .withdrawal-card div {
+      margin-bottom: 6px;
+    }
+    .status {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .status.paid { color: green; }
+    .status.pending { color: orange; }
+    .status.rejected { color: red; }
+  </style>
+</head>
+<body>
+  <h2>All Withdrawals</h2>
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Search by name or phone...">
+  </div>
+  <div id="withdrawalList">Loading...</div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+      authDomain: "cashprint-c5e72.firebaseapp.com",
+      projectId: "cashprint-c5e72"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let allWithdrawals = [];
+
+    async function loadWithdrawals() {
+      const container = document.getElementById("withdrawalList");
+      container.innerHTML = "";
+
+      const usersMap = {};
+      const usersSnap = await db.collection("users").get();
+      usersSnap.forEach(doc => {
+        usersMap[doc.id] = doc.data();
+      });
+
+      const earningsMap = {};
+      const earningsSnap = await db.collection("earnings").get();
+      earningsSnap.forEach(doc => {
+        const e = doc.data();
+        if (!earningsMap[e.userId]) earningsMap[e.userId] = 0;
+        earningsMap[e.userId] += e.amount || 0;
+      });
+
+      const snapshot = await db.collection("withdrawals").orderBy("timestamp", "desc").get();
+
+      if (snapshot.empty) {
+        container.textContent = "No withdrawals found.";
+        return;
+      }
+
+      allWithdrawals = snapshot.docs.map(doc => {
+        const w = doc.data();
+        const user = usersMap[w.userId] || {};
+        const invested = earningsMap[w.userId] || 0;
+        return { id: doc.id, w, user, invested };
+      });
+
+      renderWithdrawals(allWithdrawals);
+    }
+
+    function renderWithdrawals(data) {
+      const container = document.getElementById("withdrawalList");
+      container.innerHTML = "";
+
+      data.forEach(({ w, user, invested }) => {
+        const userPhone = user.phone || "Unknown";
+        const userName = user.name || "Unknown";
+        const statusClass = `status ${w.status}`;
+        const time = w.timestamp?.toDate().toLocaleString() || 'No time';
+
+        const div = document.createElement("div");
+        div.className = "withdrawal-card";
+        div.innerHTML = `
+          <div><strong>Owner Name:</strong> ${userName}</div>
+          <div><strong>Owner Phone (Users):</strong> ${userPhone}</div>
+          <div><strong>Phone (Withdrawals):</strong> ${w.phone}</div>
+          <div><strong>Name (Withdrawals):</strong> ${w.name}</div>
+          <div><strong>Status:</strong> <span class="${statusClass}">${w.status}</span></div>
+          <div><strong>Amount:</strong> ${w.amount?.toLocaleString()} UGX</div>
+          <div><strong>Time:</strong> ${time}</div>
+          <div><strong>Earnings Document:</strong> ${invested > 0 ? 'Yes' : 'No'} (${invested.toLocaleString()} UGX invested)</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    document.getElementById("searchInput").addEventListener("input", e => {
+      const query = e.target.value.toLowerCase();
+      const filtered = allWithdrawals.filter(({ w, user }) => {
+        return (
+          (user.name || '').toLowerCase().includes(query) ||
+          (user.phone || '').includes(query) ||
+          (w.phone || '').includes(query) ||
+          (w.name || '').toLowerCase().includes(query)
+        );
+      });
+      renderWithdrawals(filtered);
+    });
+
+    loadWithdrawals();
+  </script></body>
+</html>
