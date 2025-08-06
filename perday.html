@@ -1,5 +1,4 @@
-<!DOCTYPE html><html lang="en">
-<head>
+<!DOCTYPE html><html lang="en"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Summary - CashPrint</title>
@@ -19,69 +18,82 @@
     }
     .day-summary {
       background: #fff;
-      padding: 15px;
-      margin-bottom: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
       border-radius: 10px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      line-height: 1.8;
     }
     .day-summary h3 {
-      margin: 0 0 5px;
-      font-size: 18px;
+      margin: 0 0 15px;
+      font-size: 20px;
       color: #d35400;
+    }
+    .day-summary div {
+      margin-bottom: 6px;
+      font-size: 15px;
     }
   </style>
 </head>
 <body>
   <h2>Daily Deposit & Withdrawal Summary</h2>
-  <div id="dailySummary"></div>  <script>
+  <div id="dailySummary"></div>
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
       authDomain: "cashprint-c5e72.firebaseapp.com",
       projectId: "cashprint-c5e72"
     };
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const db = firebase.firestore();async function loadDailySummary() {
+  const container = document.getElementById("dailySummary");
+  container.innerHTML = "Loading...";
 
-    async function loadDailySummary() {
-      const container = document.getElementById("dailySummary");
-      container.innerHTML = "Loading...";
+  const depositsSnap = await db.collection("deposits").where("status", "==", "approved").get();
+  const withdrawalsSnap = await db.collection("withdrawals").where("status", "==", "paid").get();
 
-      const depositsSnap = await db.collection("deposits").where("status", "==", "approved").get();
-      const withdrawalsSnap = await db.collection("withdrawals").where("status", "==", "paid").get();
+  const summary = {};
 
-      const summary = {};
+  depositsSnap.forEach(doc => {
+    const data = doc.data();
+    if (!data.timestamp) return;
+    const date = data.timestamp.toDate().toISOString().split('T')[0];
+    if (!summary[date]) summary[date] = { deposits: 0, withdrawals: 0 };
+    summary[date].deposits += data.amount || 0;
+  });
 
-      depositsSnap.forEach(doc => {
-        const data = doc.data();
-        if (!data.timestamp) return;
-        const date = data.timestamp.toDate().toISOString().split('T')[0];
-        if (!summary[date]) summary[date] = { deposits: 0, withdrawals: 0 };
-        summary[date].deposits += data.amount || 0;
-      });
+  withdrawalsSnap.forEach(doc => {
+    const data = doc.data();
+    if (!data.timestamp) return;
+    const date = data.timestamp.toDate().toISOString().split('T')[0];
+    if (!summary[date]) summary[date] = { deposits: 0, withdrawals: 0 };
+    summary[date].withdrawals += data.amount || 0;
+  });
 
-      withdrawalsSnap.forEach(doc => {
-        const data = doc.data();
-        if (!data.timestamp) return;
-        const date = data.timestamp.toDate().toISOString().split('T')[0];
-        if (!summary[date]) summary[date] = { deposits: 0, withdrawals: 0 };
-        summary[date].withdrawals += data.amount || 0;
-      });
+  container.innerHTML = "";
+  const sortedDates = Object.keys(summary).sort((a, b) => new Date(b) - new Date(a));
 
-      container.innerHTML = "";
-      const sortedDates = Object.keys(summary).sort((a, b) => new Date(b) - new Date(a));
+  sortedDates.forEach(date => {
+    const deposits = summary[date].deposits;
+    const withdrawals = summary[date].withdrawals;
+    const profit = deposits - withdrawals;
+    const ratio = withdrawals > 0 ? (deposits / withdrawals).toFixed(2) : 'N/A';
 
-      sortedDates.forEach(date => {
-        const div = document.createElement("div");
-        div.className = "day-summary";
-        div.innerHTML = `
-          <h3>${date}</h3>
-          <div>Total Deposits: ${summary[date].deposits.toLocaleString()} UGX</div>
-          <div>Total Withdrawals: ${summary[date].withdrawals.toLocaleString()} UGX</div>
-        `;
-        container.appendChild(div);
-      });
-    }
+    const div = document.createElement("div");
+    div.className = "day-summary";
+    div.innerHTML = `
+      <h3>${date}</h3>
+      <div><strong>Total Deposits:</strong> ${deposits.toLocaleString()} UGX</div>
+      <div><strong>Total Withdrawals:</strong> ${withdrawals.toLocaleString()} UGX</div>
+      <div><strong>Daily Profit:</strong> ${profit.toLocaleString()} UGX</div>
+      <div><strong>Deposit/Withdraw Ratio:</strong> ${ratio}</div>
+    `;
+    container.appendChild(div);
+  });
+}
 
-    loadDailySummary();
-  </script></body>
+loadDailySummary();
+
+  </script>
+</body>
 </html>
