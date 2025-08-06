@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Post Reward - CashPrint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    #searchInput {
+      width: 100%;
+      max-width: 400px;
+      padding: 10px;
+      font-size: 16px;
+      margin: 20px auto;
+      display: block;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .card {
+      background: #ffffff;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 10px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+    }
+
+    .card span {
+      display: block;
+      margin: 4px 0;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .award-btn {
+      background-color: #2ecc71;
+      color: white;
+    }
+
+    .ignore-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Reward Posts for Withdraw Proofs</h2>
+  <input type="text" id="searchInput" placeholder="Search by name, phone, or amount..." oninput="filterWithdrawals()" />
+
+  <div id="withdrawalsContainer">Loading...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+      authDomain: "cashprint-c5e72.firebaseapp.com",
+      projectId: "cashprint-c5e72"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let allWithdrawals = [];
+
+    async function loadWithdrawals() {
+      const container = document.getElementById('withdrawalsContainer');
+      container.innerHTML = "Loading...";
+      allWithdrawals = [];
+
+      const snapshot = await db.collection("withdrawals")
+        .where("status", "==", "paid")
+        .get();
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.postStatus === "awarded" || data.postStatus === "ignored") return;
+        allWithdrawals.push({ id: doc.id, ...data });
+      });
+
+      displayWithdrawals(allWithdrawals);
+    }
+
+    function displayWithdrawals(list) {
+      const container = document.getElementById('withdrawalsContainer');
+      container.innerHTML = "";
+
+      if (list.length === 0) {
+        container.innerHTML = "No matching withdrawals found.";
+        return;
+      }
+
+      list.forEach(data => {
+        const card = document.createElement("div");
+        card.className = "card";
+        const time = data.timestamp?.toDate().toLocaleString() || "No time";
+
+        card.innerHTML = `
+          <span><strong>Name:</strong> ${data.name}</span>
+          <span><strong>Phone:</strong> ${data.phone}</span>
+          <span><strong>Amount:</strong> UGX ${data.amount}</span>
+          <span><strong>Time:</strong> ${time}</span>
+        `;
+
+        const btnGroup = document.createElement("div");
+        btnGroup.className = "btn-group";
+
+        const awardBtn = document.createElement("button");
+        awardBtn.textContent = "Award";
+        awardBtn.className = "btn award-btn";
+        awardBtn.onclick = async () => {
+          await db.collection("withdrawals").doc(data.id).update({
+            postStatus: "awarded"
+          });
+          await db.collection("users").doc(data.userId).update({
+            accountBalance: firebase.firestore.FieldValue.increment(200)
+          });
+          alert("User awarded 200 UGX!");
+          loadWithdrawals();
+        };
+
+        const ignoreBtn = document.createElement("button");
+        ignoreBtn.textContent = "Ignore";
+        ignoreBtn.className = "btn ignore-btn";
+        ignoreBtn.onclick = async () => {
+          await db.collection("withdrawals").doc(data.id).update({
+            postStatus: "ignored"
+          });
+          alert("Marked as ignored.");
+          loadWithdrawals();
+        };
+
+        btnGroup.appendChild(awardBtn);
+        btnGroup.appendChild(ignoreBtn);
+        card.appendChild(btnGroup);
+        container.appendChild(card);
+      });
+    }
+
+    function filterWithdrawals() {
+      const term = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = allWithdrawals.filter(w => 
+        w.name?.toLowerCase().includes(term) ||
+        w.phone?.toLowerCase().includes(term) ||
+        String(w.amount).includes(term)
+      );
+      displayWithdrawals(filtered);
+    }
+
+    loadWithdrawals();
+  </script>
+
+</body>
+</html>
