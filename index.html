@@ -140,7 +140,11 @@
 </div><div class="section">
   <h3>Pending Withdrawals</h3>
   <div id="pendingWithdrawals"></div>
-</div><script>
+</div>
+
+
+
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
     authDomain: "cashprint-c5e72.firebaseapp.com",
@@ -172,6 +176,23 @@
     const pendingDeposits = document.getElementById("pendingDeposits");
     const pendingWithdrawals = document.getElementById("pendingWithdrawals");
 
+    // Users map
+    const usersMap = {};
+    const usersSnap = await db.collection("users").get();
+    usersSnap.forEach(doc => {
+      usersMap[doc.id] = doc.data();
+    });
+
+    // Earnings map
+    const earningsMap = {};
+    const earningsSnap = await db.collection("earnings").get();
+    earningsSnap.forEach(doc => {
+      const e = doc.data();
+      if (!earningsMap[e.userId]) earningsMap[e.userId] = 0;
+      earningsMap[e.userId] += e.amount || 0;
+    });
+
+    // Load pending deposits
     const depositsSnap = await db.collection("deposits").where("status", "==", "pending").get();
     depositsSnap.forEach(doc => {
       const d = doc.data();
@@ -182,11 +203,26 @@
         </div>`;
     });
 
+    // Load pending withdrawals with full details
     const withdrawSnap = await db.collection("withdrawals").where("status", "==", "pending").get();
     withdrawSnap.forEach(doc => {
       const d = doc.data();
+      const user = usersMap[d.userId] || {};
+      const userPhone = user.phone || "Unknown";
+      const userName = user.name || "Unknown";
+      const invested = earningsMap[d.userId] || 0;
+      const time = d.timestamp?.toDate().toLocaleString() || 'No time';
+
       pendingWithdrawals.innerHTML += `
-        <div><strong>${d.name}</strong> (${d.phone}) - UGX ${d.amount}
+        <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
+          <div><strong>Owner Name:</strong> ${userName}</div>
+          <div><strong>Owner Phone (Users):</strong> ${userPhone}</div>
+          <div><strong>Phone (Withdrawals):</strong> ${d.phone}</div>
+          <div><strong>Name (Withdrawals):</strong> ${d.name}</div>
+          <div><strong>Status:</strong> ${d.status}</div>
+          <div><strong>Amount:</strong> ${d.amount?.toLocaleString()} UGX</div>
+          <div><strong>Time:</strong> ${time}</div>
+          <div><strong>Earnings Document:</strong> ${invested > 0 ? 'Yes' : 'No'} (${invested.toLocaleString()} UGX invested)</div>
           <button class="approve" onclick="approveWithdrawal('${doc.id}')">Approve</button>
           <button class="reject" onclick="rejectWithdrawal('${doc.id}')">Reject</button>
         </div>`;
@@ -222,5 +258,6 @@
 
   loadDashboard();
   loadPending();
-</script></body>
+</script>
+</body>
 </html>
