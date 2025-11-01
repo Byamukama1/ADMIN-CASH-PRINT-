@@ -172,6 +172,7 @@
       }
     }
 
+    // ✅ Updated processing logic — updates both earnings docs and user balances
     async function processEarnings() {
       const last = localStorage.getItem(lastProcessedTimeKey);
       const now = Date.now();
@@ -186,16 +187,29 @@
 
       for (const doc of snapshot.docs) {
         const data = doc.data();
+        const earningRef = db.collection("earnings").doc(doc.id);
+
         if (data.remainingDays > 0) {
           const newRemaining = data.remainingDays - 1;
-          await db.collection("earnings").doc(doc.id).update({ remainingDays: newRemaining });
+          const newTotalEarned = (data.totalEarnedSoFar || 0) + (data.dailyIncome || 0);
+
+          // Update earnings document
+          await earningRef.update({
+            remainingDays: newRemaining,
+            totalEarnedSoFar: newTotalEarned
+          });
+
+          // Update user account balance
           await db.collection("users").doc(data.userId).update({
             accountBalance: firebase.firestore.FieldValue.increment(data.dailyIncome)
           });
+        } else {
+          // Mark earning as completed
+          await earningRef.update({ status: "completed" });
         }
       }
 
-      alert("✅ Earnings processed successfully");
+      alert("✅ Earnings processed successfully and balances updated");
       localStorage.setItem(lastProcessedTimeKey, now);
       loadEarnings();
     }
