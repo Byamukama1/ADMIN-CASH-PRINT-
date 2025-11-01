@@ -157,8 +157,8 @@
           <p><b>Daily Income:</b> ${entry.dailyIncome}</p>
           <p><b>Remaining Days:</b> ${entry.remainingDays}</p>
           <p><b>Date:</b> ${new Date(entry.timestamp?.seconds * 1000).toLocaleString()}</p>
-          <button class="delete-btn" onclick="deleteEarning('${entry.docId}')">Delete</button>
-        `;
+
+          
         earningsContainer.appendChild(card);
       });
     }
