@@ -161,6 +161,19 @@
         startDate: firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      // ✅ Create earning record
+      await db.collection("earnings").add({
+        userId,
+        type: "investment",
+        amount,
+        dailyIncome: amount * 0.1,
+        totalExpected: amount * 0.1 * 120,
+        remainingDays: 120,
+        totalEarnedSoFar: 0,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status: "active"
+      });
+
       // Award referrer 10% if available
       if (userData && userData.referrerPhone) {
         const refSnap = await db.collection("users")
@@ -190,7 +203,7 @@
         }
       }
 
-      alert("Deposit approved. Investment created and referral bonus awarded (if any).");
+      alert("Deposit approved. Investment and earnings records created (plus referral bonus if any).");
       location.reload();
     }
 
