@@ -157,20 +157,8 @@
           <p><b>Daily Income:</b> ${entry.dailyIncome}</p>
           <p><b>Remaining Days:</b> ${entry.remainingDays}</p>
           <p><b>Date:</b> ${new Date(entry.timestamp?.seconds * 1000).toLocaleString()}</p>
-          <button class="delete-btn" onclick="deleteEarning('${entry.docId}')">Delete</button>
-        `;
-        earningsContainer.appendChild(card);
-      });
-    }
 
-    async function deleteEarning(docId) {
-      const confirmDelete = confirm("Are you sure you want to delete this earnings entry?");
-      if (confirmDelete) {
-        await db.collection("earnings").doc(docId).delete();
-        alert("Earnings entry deleted.");
-        loadEarnings();
-      }
-    }
+        
 
     // ✅ Updated processing logic — updates both earnings docs and user balances
     async function processEarnings() {
