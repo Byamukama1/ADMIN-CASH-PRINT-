@@ -80,77 +80,85 @@
     <div id="pendingWithdrawals"></div>
   </div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
-      authDomain: "cashprint-c5e72.firebaseapp.com",
-      projectId: "cashprint-c5e72",
-      storageBucket: "cashprint-c5e72.appspot.com",
-      messagingSenderId: "613734624925",
-      appId: "1:613734624925:web:d6bc8a18b3b6cb3a31ae74"
-    };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+  
+   <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDIP5I-yG0skjsva9B3p-pMshPuq4odFU8",
+    authDomain: "cashprint-c5e72.firebaseapp.com",
+    projectId: "cashprint-c5e72",
+    storageBucket: "cashprint-c5e72.appspot.com",
+    messagingSenderId: "613734624925",
+    appId: "1:613734624925:web:d6bc8a18b3b6cb3a31ae74"
+  };
 
-    // ===== Dashboard Summary =====
-    async function loadDashboard() {
-      let totalDeposits = 0;
-      let totalWithdrawals = 0;
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-      const depositsSnap = await db.collection("deposits").where("status", "==", "approved").get();
-      depositsSnap.forEach(doc => totalDeposits += doc.data().amount || 0);
+  // ===== Dashboard Summary =====
+  async function loadDashboard() {
+    let totalDeposits = 0;
+    let totalWithdrawals = 0;
 
-      const withdrawalsSnap = await db.collection("withdrawals").where("status", "==", "paid").get();
-      withdrawalsSnap.forEach(doc => totalWithdrawals += doc.data().amount || 0);
+    const depositsSnap = await db.collection("deposits").where("status", "==", "approved").get();
+    depositsSnap.forEach(doc => totalDeposits += doc.data().amount || 0);
 
-      document.getElementById("totalDeposits").textContent = totalDeposits.toLocaleString();
-      document.getElementById("totalWithdrawals").textContent = totalWithdrawals.toLocaleString();
-      document.getElementById("profit").textContent = (totalDeposits - totalWithdrawals).toLocaleString();
-    }
+    const withdrawalsSnap = await db.collection("withdrawals").where("status", "==", "paid").get();
+    withdrawalsSnap.forEach(doc => totalWithdrawals += doc.data().amount || 0);
 
-    // ===== Pending Lists =====
-    async function loadPending() {
-      const depositsEl = document.getElementById("pendingDeposits");
-      const withdrawalsEl = document.getElementById("pendingWithdrawals");
+    document.getElementById("totalDeposits").textContent = totalDeposits.toLocaleString();
+    document.getElementById("totalWithdrawals").textContent = totalWithdrawals.toLocaleString();
+    document.getElementById("profit").textContent = (totalDeposits - totalWithdrawals).toLocaleString();
+  }
 
-      const depositsSnap = await db.collection("deposits").where("status", "==", "pending").get();
-      if (depositsSnap.empty) depositsEl.textContent = "No pending deposits.";
-      depositsSnap.forEach(doc => {
-        const d = doc.data();
-        depositsEl.innerHTML += `
-          <div style="margin-bottom:10px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-            <strong>${d.senderName}</strong> (${d.senderPhone}) - UGX ${d.amount}
-            <button class="approve" onclick="approveDeposit('${doc.id}', ${d.amount}, '${d.userId}')">Approve</button>
-            <button class="reject" onclick="rejectDeposit('${doc.id}')">Reject</button>
-          </div>`;
-      });
+  // ===== Pending Lists =====
+  async function loadPending() {
+    const depositsEl = document.getElementById("pendingDeposits");
+    const withdrawalsEl = document.getElementById("pendingWithdrawals");
 
-      const withdrawSnap = await db.collection("withdrawals").where("status", "==", "pending").get();
-      if (withdrawSnap.empty) withdrawalsEl.textContent = "No pending withdrawals.";
-      withdrawSnap.forEach(doc => {
-        const d = doc.data();
-        withdrawalsEl.innerHTML += `
-          <div style="margin-bottom:10px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-            <div><strong>Name:</strong> ${d.name}</div>
-            <div><strong>Phone:</strong> ${d.phone}</div>
-            <div><strong>Amount:</strong> ${d.amount.toLocaleString()} UGX</div>
-            <button class="approve" onclick="approveWithdrawal('${doc.id}', ${d.amount}, '${d.userId}')">Approve</button>
-            <button class="reject" onclick="rejectWithdrawal('${doc.id}')">Reject</button>
-          </div>`;
-      });
-    }
+    const depositsSnap = await db.collection("deposits").where("status", "==", "pending").get();
+    if (depositsSnap.empty) depositsEl.textContent = "No pending deposits.";
+    depositsSnap.forEach(doc => {
+      const d = doc.data();
+      depositsEl.innerHTML += `
+        <div style="margin-bottom:10px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <strong>${d.senderName}</strong> (${d.senderPhone}) - UGX ${d.amount}
+          <button class="approve" onclick="approveDeposit('${doc.id}', ${d.amount}, '${d.userId}')">Approve</button>
+          <button class="reject" onclick="rejectDeposit('${doc.id}')">Reject</button>
+        </div>`;
+    });
 
-    // ===== Deposit Approval =====
-    async function approveDeposit(id, amount, userId) {
-      const userRef = db.collection("users").doc(userId);
-      const userSnap = await userRef.get();
-      const userData = userSnap.data();
+    const withdrawSnap = await db.collection("withdrawals").where("status", "==", "pending").get();
+    if (withdrawSnap.empty) withdrawalsEl.textContent = "No pending withdrawals.";
+    withdrawSnap.forEach(doc => {
+      const d = doc.data();
+      withdrawalsEl.innerHTML += `
+        <div style="margin-bottom:10px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <div><strong>Name:</strong> ${d.name}</div>
+          <div><strong>Phone:</strong> ${d.phone}</div>
+          <div><strong>Amount:</strong> ${d.amount.toLocaleString()} UGX</div>
+          <button class="approve" onclick="approveWithdrawal('${doc.id}', ${d.amount}, '${d.userId}')">Approve</button>
+          <button class="reject" onclick="rejectWithdrawal('${doc.id}')">Reject</button>
+        </div>`;
+    });
+  }
 
-      // Mark deposit as approved
-      await db.collection("deposits").doc(id).update({ status: "approved" });
+  // ===== Deposit Approval (safe check for duplicates) =====
+  async function approveDeposit(id, amount, userId) {
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    const userData = userSnap.data();
 
-      // Create investment
+    // Mark deposit as approved
+    await db.collection("deposits").doc(id).update({ status: "approved" });
+
+    // --- Check if investment already exists ---
+    const investSnap = await db.collection("investments")
+      .where("userId", "==", userId)
+      .where("amount", "==", amount)
+      .get();
+
+    if (investSnap.empty) {
       await db.collection("investments").add({
         userId,
         amount,
@@ -160,8 +168,16 @@
         status: "active",
         startDate: firebase.firestore.FieldValue.serverTimestamp()
       });
+    }
 
-      // ✅ Create earning record
+    // --- Check if earnings record already exists ---
+    const earnSnap = await db.collection("earnings")
+      .where("userId", "==", userId)
+      .where("amount", "==", amount)
+      .where("type", "==", "investment")
+      .get();
+
+    if (earnSnap.empty) {
       await db.collection("earnings").add({
         userId,
         type: "investment",
@@ -173,25 +189,32 @@
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "active"
       });
+    }
 
-      // Award referrer 10% if available
-      if (userData && userData.referrerPhone) {
-        const refSnap = await db.collection("users")
-          .where("phone", "==", userData.referrerPhone)
-          .limit(1)
+    // ✅ Award referrer 10% if available
+    if (userData && userData.referrerPhone) {
+      const refSnap = await db.collection("users")
+        .where("phone", "==", userData.referrerPhone)
+        .limit(1)
+        .get();
+
+      if (!refSnap.empty) {
+        const refDoc = refSnap.docs[0];
+        const refId = refDoc.id;
+        const bonus = amount * 0.10;
+
+        await db.collection("users").doc(refId).update({
+          accountBalance: firebase.firestore.FieldValue.increment(bonus)
+        });
+
+        // Avoid duplicate referral logs
+        const refLog = await db.collection("earnings")
+          .where("type", "==", "referral")
+          .where("referrerId", "==", refId)
+          .where("refereeId", "==", userId)
           .get();
 
-        if (!refSnap.empty) {
-          const refDoc = refSnap.docs[0];
-          const refId = refDoc.id;
-          const bonus = amount * 0.10;
-
-          // Add bonus to referrer's balance
-          await db.collection("users").doc(refId).update({
-            accountBalance: firebase.firestore.FieldValue.increment(bonus)
-          });
-
-          // Log bonus
+        if (refLog.empty) {
           await db.collection("earnings").add({
             type: "referral",
             referrerId: refId,
@@ -202,37 +225,38 @@
           });
         }
       }
-
-      alert("Deposit approved. Investment and earnings records created (plus referral bonus if any).");
-      location.reload();
     }
 
-    // ===== Reject Deposit =====
-    async function rejectDeposit(id) {
-      await db.collection("deposits").doc(id).update({ status: "rejected" });
-      alert("Deposit rejected.");
-      location.reload();
-    }
+    alert("✅ Deposit approved safely (no duplicates created).");
+    location.reload();
+  }
 
-    // ===== Approve Withdrawal =====
-    async function approveWithdrawal(id, amount, userId) {
-      await db.collection("withdrawals").doc(id).update({ status: "paid" });
-      await db.collection("users").doc(userId).update({
-        accountBalance: firebase.firestore.FieldValue.increment(-amount)
-      });
-      alert("Withdrawal approved and balance deducted.");
-      location.reload();
-    }
+  // ===== Reject Deposit =====
+  async function rejectDeposit(id) {
+    await db.collection("deposits").doc(id).update({ status: "rejected" });
+    alert("Deposit rejected.");
+    location.reload();
+  }
 
-    // ===== Reject Withdrawal =====
-    async function rejectWithdrawal(id) {
-      await db.collection("withdrawals").doc(id).update({ status: "rejected" });
-      alert("Withdrawal rejected.");
-      location.reload();
-    }
+  // ===== Approve Withdrawal =====
+  async function approveWithdrawal(id, amount, userId) {
+    await db.collection("withdrawals").doc(id).update({ status: "paid" });
+    await db.collection("users").doc(userId).update({
+      accountBalance: firebase.firestore.FieldValue.increment(-amount)
+    });
+    alert("Withdrawal approved and balance deducted.");
+    location.reload();
+  }
 
-    loadDashboard();
-    loadPending();
-  </script>
+  // ===== Reject Withdrawal =====
+  async function rejectWithdrawal(id) {
+    await db.collection("withdrawals").doc(id).update({ status: "rejected" });
+    alert("Withdrawal rejected.");
+    location.reload();
+  }
+
+  loadDashboard();
+  loadPending();
+</script>
 </body>
 </html>
